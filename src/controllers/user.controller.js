@@ -1,147 +1,108 @@
+const catchAsync = require('../utils/catchAsync');
 const User = require('./../models/user.model');
+const bcrypt = require('bcryptjs');
+const generateJWT = require('../utils/jwt');
+const AppError = require('../utils/appError');
 
-exports.findAllUsers = async (req, res) => {
-  try {
-    const users = await User.findAll({
-      where: {
-        status: 'available',
-      },
-    });
+exports.findAllUsers = catchAsync(async (req, res, next) => {
+  const users = await User.findAll({
+    where: {
+      status: 'available',
+    },
+  });
 
-    res.status(200).json({
-      status: 'success',
-      users,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: 'fail',
-      message: 'Something went very wrong',
-      error,
-    });
+  res.status(200).json({
+    status: 'success',
+    users,
+  });
+});
+
+exports.findOneUser = catchAsync(async (req, res, next) => {
+  const { user } = req;
+
+  res.status(200).json({
+    status: 'success',
+    user,
+  });
+});
+
+exports.createUser = catchAsync(async (req, res, next) => {
+  const { name, email, password, role = 'client' } = req.body;
+
+  const salt = await bcrypt.genSalt(12);
+  const encryptedPassword = await bcrypt.hash(password, salt);
+
+  const user = await User.create({
+    name: name.toLowerCase().trim(),
+    email: email.toLowerCase().trim(),
+    password: encryptedPassword,
+    role,
+  });
+
+  const token = await generateJWT(user.id);
+
+  res.status(201).json({
+    status: 'success',
+    message: 'User created successfully!',
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  });
+});
+
+exports.updateUser = catchAsync(async (req, res, next) => {
+  const { user } = req;
+  const { name, email } = req.body;
+
+  await user.update({ name, email });
+
+  res.status(200).json({
+    status: 'success',
+    message: 'User updated successfully',
+  });
+});
+
+exports.deleteUser = catchAsync(async (req, res, next) => {
+  const { user } = req;
+
+  await user.update({ status: 'disabled' });
+  return res.status(200).json({
+    status: 'success',
+    message: 'User deleted successfully',
+  });
+});
+
+exports.login = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({
+    where: {
+      email: email.toLowerCase().trim(),
+      status: 'available',
+    },
+  });
+
+  if (!user) {
+    return next(new AppError(`User with email: ${email} not found`, 404));
   }
-};
 
-exports.findOneUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = await User.findOne({
-      where: {
-        id,
-        status: 'available',
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: `User with id: ${id} not found`,
-      });
-    }
-
-    res.status(200).json({
-      status: 'success',
-      user,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: 'fail',
-      message: 'Something went very wrong',
-      error,
-    });
+  if (!(await bcrypt.compare(password, user.password))) {
+    return next(new AppError('Incorrect email or password'), 401);
   }
-};
 
-exports.createUser = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role,
-    });
-
-    res.status(201).json({
-      status: 'success',
-      message: 'User created successfully!',
-      user,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: 'fail',
-      message: 'Something went very wrong',
-      error,
-    });
-  }
-};
-
-exports.updateUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, email } = req.body;
-
-    const user = await User.findOne({
-      where: {
-        id,
-        status: 'available',
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: `User with id: ${id} not found`,
-      });
-    }
-
-    await user.update({ name, email });
-
-    res.status(200).json({
-      status: 'success',
-      message: 'User updated successfully',
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: 'fail',
-      message: 'Something went very wrong',
-      error,
-    });
-  }
-};
-
-exports.deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = await User.findOne({
-      where: {
-        id,
-        status: 'available',
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: `User with id: ${id} not found`,
-      });
-    }
-
-    await user.update({ status: 'unAvailable' });
-    return res.status(200).json({
-      status: 'success',
-      message: 'User deleted successfully',
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      status: 'fail',
-      message: 'Something went very wrong',
-      error,
-    });
-  }
-};
+  const token = await generateJWT(user.id);
+  res.status(200).json({
+    status: 'success',
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+  });
+});

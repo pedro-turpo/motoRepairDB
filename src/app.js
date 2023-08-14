@@ -28,8 +28,3 @@ app.all('*', (req, res, next) => {
 app.use(globalErrorHandler)
 
 module.exports = app;
-
-/* 
-/// !PERSONAL_NOTES
-1.No 45
-*/

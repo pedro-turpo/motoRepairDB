@@ -1,11 +1,21 @@
 const catchAsync = require('../utils/catchAsync');
 const Repair = require('./../models/repair.model');
+const User = require('../models/user.model');
+const { Op } = require('sequelize');
 
 exports.findAllMotorcycles = catchAsync(async (req, res, next) => {
   const repair = await Repair.findAll({
     where: {
-      status: 'pending',
+      status: {
+        [Op.or]: ['pending', 'completed'],
+      },
     },
+    include: [
+      {
+        model: User,
+        attributes: ['id', 'name', 'email', 'role', 'status'],
+      },
+    ],
   });
 
   res.status(200).json({

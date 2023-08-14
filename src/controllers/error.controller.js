@@ -15,6 +15,9 @@ const handleCastError22P02 = () =>
 const handleCastError23505 = () =>
   new AppError('Duplicate fild value: please use another value.', 400);
 
+const handleCastError23503 = () =>
+  new AppError('Invalid user. Please thy another ID ', 400);
+
 const sendErrorDev = (err, res) => {
   return res.status(err.statusCode).json({
     status: err.status,
@@ -52,6 +55,7 @@ const globalErrorHandler = (err, req, res, next) => {
     if (err.parent?.code === '22001') error = handleCastError22001();
     if (err.parent?.code === '22P02') error = handleCastError22P02();
     if (err.parent?.code === '23505') error = handleCastError23505();
+    if (err.parent?.code === '23503') error = handleCastError23503();
     if (err.name === 'JsonWebTokenError') error = handleJWTError();
     if (err.name === 'TokenExpiredError') error = handleJWTExpiredError();
 
